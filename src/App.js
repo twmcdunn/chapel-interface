@@ -1,36 +1,51 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { TransformWrapper, TransformComponent, MiniMap } from "react-zoom-pan-pinch";
-
 const ChapelAttendanceApp = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [seatData, setSeatData] = useState({});
   const transformRef = useRef(null);
+  const imgRef = useRef(null);
+  const [seatCoords, setSeatCoords] = useState(null);
+  const [seatDims, setSeatDims] = useState(null);
+  const [hoveredSeat, setHoveredSeat] = useState(null);
+  const [contextMenuSeat, setContextMenuSeat] = useState(null);
 
-  const handleRightClick = (event) => {
+  //fetch seat data
+  useEffect(() => {
+    fetch('./seats.csv')
+      .then(response => response.text())
+      .then(data => {
+        const grid = data.split('\n').map((row) => row.split(','));
+        setSeatCoords(grid);
+      });
+
+    fetch('./seatDims.json')
+      .then(response => response.json())
+      .then(data => setSeatDims(data));
+  }, []);
+
+  const handleRightClick = (event, seatKey) => {
     event.preventDefault();
-    
+    console.log("CONTEXT MENU LOGIC");
+
     if (transformRef.current) {
-      const transformState = transformRef.current.instance.transformState;
-      const rect = event.currentTarget.getBoundingClientRect();
-      
-      // Calculate the actual image coordinates accounting for zoom and pan
-      const imageX = (event.clientX - rect.left - transformState.positionX) / transformState.scale;
-      const imageY = (event.clientY - rect.top - transformState.positionY) / transformState.scale;
-      
-      setSelectedSeat({ x: imageX, y: imageY });
+      console.log("CONTEXT MENU LOGIC1");
+
       setContextMenu({
         x: event.clientX,
-        y: event.clientY,
-        imageX,
-        imageY
+        y: event.clientY
       });
+
+    setContextMenuSeat(seatKey);
+    //console.log()
     }
   };
 
   const handleClick = (event) => {
     // Close context menu on regular click
     setContextMenu(null);
+    setContextMenuSeat(null);
   };
 
   const handleSeatStatus = (status) => {
@@ -143,9 +158,9 @@ const ChapelAttendanceApp = () => {
               overflow: 'hidden'
             }}>
               <MiniMap width={200} height={150}>
-                <img 
-                  src="Camera1_00_20250601140000.jpg" 
-                  alt="Chapel minimap" 
+                <img
+                  src="Camera1_00_20250601140000.jpg"
+                  alt="Chapel minimap"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </MiniMap>
@@ -162,46 +177,85 @@ const ChapelAttendanceApp = () => {
                 height: '100%'
               }}
             >
-              <div 
-                style={{ 
+              <div
+                style={{
                   position: 'relative',
                   display: 'inline-block',
                   cursor: 'grab'
                 }}
-                onContextMenu={handleRightClick}
                 onClick={handleClick}
               >
-                <img 
-                  src="Camera1_00_20250601140000.jpg" 
-                  alt="Chapel attendance view" 
-                  style={{ 
+                <img
+                  src="Camera1_00_20250601140000.jpg"
+                  alt="Chapel attendance view"
+                  style={{
                     display: 'block',
                     maxWidth: 'none',
                     userSelect: 'none',
                     pointerEvents: 'none'
                   }}
                   draggable={false}
+                  ref={imgRef}
                 />
-                
+
                 {/* Render seat markers */}
-                {Object.entries(seatData).map(([key, seat]) => (
-                  <div
-                    key={key}
-                    style={{
-                      position: 'absolute',
-                      left: `${seat.x}px`,
-                      top: `${seat.y}px`,
-                      width: '12px',
-                      height: '12px',
-                      backgroundColor: getSeatStatusColor(seat.status),
-                      borderRadius: '50%',
-                      border: '2px solid white',
-                      transform: 'translate(-50%, -50%)',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                      pointerEvents: 'none'
-                    }}
-                  />
-                ))}
+                {Object.entries(seatData).map(([key, seat]) => {
+                  // Calculate marker position as percentage of image dimensions
+                  const leftPercent = (seat.x / seat.imageWidth) * 100;
+                  const topPercent = (seat.y / seat.imageHeight) * 100;
+
+                  return (
+                    <div
+                      key={key}
+                      style={{
+                        position: 'absolute',
+                        left: `${leftPercent}%`,
+                        top: `${topPercent}%`,
+                        width: '12px',
+                        height: '12px',
+                        backgroundColor: getSeatStatusColor(seat.status),
+                        borderRadius: '50%',
+                        border: '2px solid white',
+                        transform: 'translate(-50%, -50%)',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                        pointerEvents: 'none',
+                        zIndex: 10
+                      }}
+                    />
+                  );
+                })}
+                {seatCoords && (
+                  seatCoords.map(row => {
+                    const seatKey = "seat" + row[2];
+                    const highlighted = seatKey === hoveredSeat || seatKey === contextMenuSeat;
+                    return (
+                      <div
+                        key={seatKey}
+                        className="seat-box"
+                        onContextMenu={(event) => handleRightClick(event,seatKey)}
+                        style={{
+                          position: 'absolute',
+                          left: `${row[0]}px`,
+                          top: `${row[1]}px`,
+                          width: `${seatDims.SEAT_WIDTH}px`,
+                          height: `${seatDims.SEAT_HEIGHT}px`,
+                          borderRadius: '10%',
+                          //transform: 'translate(-50%, -50%)',
+                          //boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                          //pointerEvents: 'none',
+
+                          zIndex: 10,
+                          cursor: `pointer`,
+                          border: highlighted ? `10px solid rgba(0,255,0,1)` : `10px solid rgba(0,255,0,0.1)`
+                        }}
+                        onMouseEnter={() => setHoveredSeat(seatKey)}
+                        onMouseLeave={() => setHoveredSeat(null)}
+                      />
+                    );
+                  }
+                  )
+                )}
+
               </div>
             </TransformComponent>
 
