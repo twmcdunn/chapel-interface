@@ -17,7 +17,19 @@ const ChapelAttendanceApp = () => {
       .then(response => response.text())
       .then(data => {
         const grid = data.split('\n').map((row) => row.split(','));
-        setSeatCoords(grid);
+
+
+        fetch('./empty_seats.csv')
+          .then(response => response.text())
+          .then(data1 => {
+            setSeatCoords(grid);
+            console.log(data1);
+            const grid1 = data1.split('\n').map((row) => row.split(','));
+            for (let r = 0; r < grid.length; r++) {
+              seatData[grid[r][2] + ""] = { "status": (grid1.some(row => row[2] === grid[r][2]) ? 'absent' : 'present') };
+              //seatData[grid[r][2] + ""] = { "status": 'present' };
+            }
+          });
       });
 
     fetch('./seatDims.json')
@@ -37,8 +49,8 @@ const ChapelAttendanceApp = () => {
         y: event.clientY
       });
 
-    setContextMenuSeat(seatKey);
-    //console.log()
+      setContextMenuSeat(seatKey);
+      //console.log()
     }
   };
 
@@ -49,19 +61,15 @@ const ChapelAttendanceApp = () => {
   };
 
   const handleSeatStatus = (status) => {
-    if (selectedSeat) {
-      const seatKey = `${Math.round(selectedSeat.x)}-${Math.round(selectedSeat.y)}`;
+    if (contextMenuSeat) {
       setSeatData(prev => ({
         ...prev,
-        [seatKey]: {
-          ...selectedSeat,
-          status,
-          timestamp: new Date().toISOString()
-        }
+        [contextMenuSeat]: { "status": status }
       }));
     }
     setContextMenu(null);
     setSelectedSeat(null);
+    setContextMenuSeat(null);
   };
 
   const getSeatStatusColor = (status) => {
@@ -77,10 +85,10 @@ const ChapelAttendanceApp = () => {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <TransformWrapper
         ref={transformRef}
-        initialScale={0.5}
+        initialScale={0.4}
         minScale={0.1}
         maxScale={5}
-        centerOnInit={true}
+        centerOnInit={false}
         limitToBounds={false}
         panning={{
           disabled: false,
@@ -224,15 +232,16 @@ const ChapelAttendanceApp = () => {
                     />
                   );
                 })}
-                {seatCoords && (
+                {seatCoords && seatDims && (
                   seatCoords.map(row => {
-                    const seatKey = "seat" + row[2];
+                    const seatKey = row[2] + "";
                     const highlighted = seatKey === hoveredSeat || seatKey === contextMenuSeat;
+                    const color = (seatData[seatKey].status === 'present') ? [0, 255, 0] : [255, 0, 0];
                     return (
                       <div
                         key={seatKey}
                         className="seat-box"
-                        onContextMenu={(event) => handleRightClick(event,seatKey)}
+                        onContextMenu={(event) => handleRightClick(event, seatKey)}
                         style={{
                           position: 'absolute',
                           left: `${row[0]}px`,
@@ -246,7 +255,8 @@ const ChapelAttendanceApp = () => {
 
                           zIndex: 10,
                           cursor: `pointer`,
-                          border: highlighted ? `10px solid rgba(0,255,0,1)` : `10px solid rgba(0,255,0,0.1)`
+                          //boarder: highlighted ? `10px solid rgba(${color.join(',')},1)` : `10px solid rgba(${color.join(',')},0.25)`,
+                          backgroundColor: highlighted ? `rgba(${color.join(',')},1)` : `rgba(${color.join(',')},0.2)`
                         }}
                         onMouseEnter={() => setHoveredSeat(seatKey)}
                         onMouseLeave={() => setHoveredSeat(null)}
