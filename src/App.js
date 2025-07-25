@@ -1,40 +1,63 @@
 import React, { useState, useRef, useEffect } from "react";
 import { TransformWrapper, TransformComponent, MiniMap } from "react-zoom-pan-pinch";
+import connectToServer from "./Client";
+
+
+
 const ChapelAttendanceApp = () => {
   const [contextMenu, setContextMenu] = useState(null);
   const [selectedSeat, setSelectedSeat] = useState(null);
-  const [seatData, setSeatData] = useState({});
   const transformRef = useRef(null);
   const imgRef = useRef(null);
   const [seatCoords, setSeatCoords] = useState(null);
-  const [seatDims, setSeatDims] = useState(null);
   const [hoveredSeat, setHoveredSeat] = useState(null);
   const [contextMenuSeat, setContextMenuSeat] = useState(null);
+  const [seatData, setSeatData] = useState({});
+  const [seatDims, setSeatDims] = useState(null);
 
-  //fetch seat data
+  // //fetch seat data
+  // useEffect(() => {
+  //   fetch('./seats.csv')
+  //     .then(response => response.text())
+  //     .then(data => {
+  //       const grid = data.split('\n').map((row) => row.split(','));
+
+
+  //       fetch('./empty_seats.csv')
+  //         .then(response => response.text())
+  //         .then(data1 => {
+  //           setSeatCoords(grid);
+  //           console.log(data1);
+  //           const grid1 = data1.split('\n').map((row) => row.split(','));
+  //           for (let r = 0; r < grid.length; r++) {
+  //             seatData[grid[r][2] + ""] = { "status": (grid1.some(row => row[2] === grid[r][2]) ? 'absent' : 'present') };
+  //             //seatData[grid[r][2] + ""] = { "status": 'present' };
+  //           }
+  //         });
+  //     });
+
+  //   fetch('./seatDims.json')
+  //     .then(response => response.json())
+  //     .then(data => setSeatDims(data));
+  // }, []);
+
+  // useEffect(() => {
+  //   fetch('http://localhost:3001/api/csv', {
+  //     method: 'POST',
+  //     headers: {
+  //       'Content-Type': 'application/json'
+  //     },
+  //     body: JSON.stringify({
+  //       filename: 'seat_data.json',
+  //       data: seatData
+  //     })
+  //   })
+  //     .then(res => res.json())
+  //     .then(result => console.log(result.message || result.error))
+  //     .catch(err => console.log(err.message));
+  // }, [seatData]);
   useEffect(() => {
-    fetch('./seats.csv')
-      .then(response => response.text())
-      .then(data => {
-        const grid = data.split('\n').map((row) => row.split(','));
-
-
-        fetch('./empty_seats.csv')
-          .then(response => response.text())
-          .then(data1 => {
-            setSeatCoords(grid);
-            console.log(data1);
-            const grid1 = data1.split('\n').map((row) => row.split(','));
-            for (let r = 0; r < grid.length; r++) {
-              seatData[grid[r][2] + ""] = { "status": (grid1.some(row => row[2] === grid[r][2]) ? 'absent' : 'present') };
-              //seatData[grid[r][2] + ""] = { "status": 'present' };
-            }
-          });
-      });
-
-    fetch('./seatDims.json')
-      .then(response => response.json())
-      .then(data => setSeatDims(data));
+    connectToServer(setSeatData, setSeatDims, setSeatCoords);
   }, []);
 
   const handleRightClick = (event, seatKey) => {
